@@ -27,6 +27,7 @@ public class MainActivity extends Activity {
     private TextView currentModeText;
     private boolean isKeyboardMode = false;
     private Handler handler = new Handler();
+    private boolean isFirstResume = true;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -126,9 +127,24 @@ public class MainActivity extends Activity {
         // Start keyboard suppression when in scanner mode
         startKeyboardSuppression();
 
-        // Check for app updates
+        // Check for app updates on cold start (force check)
         UpdateManager updateManager = new UpdateManager(this);
-        updateManager.checkForUpdates();
+        updateManager.checkForUpdates(true);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        // Skip the first onResume (happens right after onCreate)
+        if (isFirstResume) {
+            isFirstResume = false;
+            return;
+        }
+
+        // Check for updates when returning from background (throttled)
+        UpdateManager updateManager = new UpdateManager(this);
+        updateManager.checkForUpdates(false);
     }
 
     private Runnable keyboardSuppressor = new Runnable() {

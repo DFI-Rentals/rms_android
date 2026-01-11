@@ -7,6 +7,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
@@ -25,6 +26,9 @@ import java.net.URL;
 public class UpdateManager {
     private Activity activity;
     private static final String GITHUB_RELEASES_API = "https://api.github.com/repos/DFI-Rentals/rms_android/releases/latest";
+    private static final String PREFS_NAME = "UpdatePrefs";
+    private static final String PREF_LAST_CHECK_TIME = "lastCheckTime";
+    private static final long CHECK_INTERVAL = 3600000; // 1 hour in milliseconds
     private String downloadUrl = null;
     private String latestVersionName = null;
     private long downloadId = -1;
@@ -33,9 +37,36 @@ public class UpdateManager {
         this.activity = activity;
     }
 
+    private boolean shouldCheckForUpdates() {
+        SharedPreferences prefs = activity.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        long lastCheckTime = prefs.getLong(PREF_LAST_CHECK_TIME, 0);
+        long currentTime = System.currentTimeMillis();
+
+        // Check if enough time has passed since last check
+        return (currentTime - lastCheckTime) >= CHECK_INTERVAL;
+    }
+
+    private void updateLastCheckTime() {
+        SharedPreferences prefs = activity.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = prefs.edit();
+        editor.putLong(PREF_LAST_CHECK_TIME, System.currentTimeMillis());
+        editor.apply();
+    }
+
     public void checkForUpdates() {
+        checkForUpdates(false);
+    }
+
+    public void checkForUpdates(boolean forceCheck) {
+        // Only check if enough time has passed (unless forced)
+        if (!forceCheck && !shouldCheckForUpdates()) {
+            return;
+        }
+
         new Thread(() -> {
             try {
+                // Update the last check time at the start of the check
+                updateLastCheckTime();
                 // Get current version
                 int currentVersion = getCurrentVersion();
                 String currentVersionName = getCurrentVersionName();
