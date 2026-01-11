@@ -43,8 +43,8 @@
             android:layout_height="wrap_content"
             android:layout_marginLeft="8dp"
             android:checked="false"
-            android:textOff="Scanner"
-            android:textOn="Keyboard" />
+            android:textOff="Barcode Scanner Input"
+            android:textOn="Keyboard Input" />
 
     </LinearLayout>
 
