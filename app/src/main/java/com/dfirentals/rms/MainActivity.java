@@ -18,11 +18,13 @@ import android.view.ActionMode;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.os.Handler;
+import android.widget.TextView;
 
 public class MainActivity extends Activity {
     private WebView webView;
     private ProgressBar progressBar;
     private Switch modeSwitch;
+    private TextView currentModeText;
     private boolean isKeyboardMode = false;
     private Handler handler = new Handler();
 
@@ -34,6 +36,7 @@ public class MainActivity extends Activity {
         webView = findViewById(R.id.webview);
         progressBar = findViewById(R.id.progressBar);
         modeSwitch = findViewById(R.id.modeSwitch);
+        currentModeText = findViewById(R.id.currentModeText);
 
         // Override WebView to prevent keyboard in scanner mode
         webView.setOnFocusChangeListener(new View.OnFocusChangeListener() {
@@ -55,6 +58,7 @@ public class MainActivity extends Activity {
                 isKeyboardMode = isChecked;
                 if (isKeyboardMode) {
                     // Keyboard mode - show soft keyboard
+                    currentModeText.setText("Keyboard Input");
                     webView.requestFocus();
                     InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
                     if (imm != null) {
@@ -62,6 +66,7 @@ public class MainActivity extends Activity {
                     }
                 } else {
                     // Scanner mode - hide soft keyboard
+                    currentModeText.setText("Barcode Scanner Input");
                     InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
                     if (imm != null) {
                         imm.hideSoftInputFromWindow(webView.getWindowToken(), 0);

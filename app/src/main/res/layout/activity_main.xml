@@ -25,7 +25,7 @@
         android:layout_height="36dp"
         android:layout_alignParentBottom="true"
         android:background="#E0E0E0"
-        android:gravity="center"
+        android:gravity="center_vertical"
         android:orientation="horizontal"
         android:paddingLeft="12dp"
         android:paddingRight="12dp">
@@ -37,14 +37,24 @@
             android:textSize="12sp"
             android:textColor="#424242" />
 
+        <TextView
+            android:id="@+id/currentModeText"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginLeft="8dp"
+            android:text="Barcode Scanner Input"
+            android:textSize="12sp"
+            android:textColor="#1976D2"
+            android:textStyle="bold" />
+
         <Switch
             android:id="@+id/modeSwitch"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginLeft="8dp"
             android:checked="false"
-            android:textOff="Barcode Scanner Input"
-            android:textOn="Keyboard Input" />
+            android:textOff=""
+            android:textOn="" />
 
     </LinearLayout>
 
