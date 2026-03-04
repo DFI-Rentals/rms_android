@@ -1,7 +1,13 @@
 package com.dfirentals.rms;
 
 import android.app.Activity;
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
+import android.provider.MediaStore;
+import android.webkit.ValueCallback;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.webkit.WebSettings;
@@ -19,6 +25,17 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.os.Handler;
 import android.widget.TextView;
+import android.Manifest;
+
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+import androidx.core.content.FileProvider;
+
+import java.io.File;
+import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 
 public class MainActivity extends Activity {
     private WebView webView;
@@ -28,6 +45,12 @@ public class MainActivity extends Activity {
     private boolean isKeyboardMode = false;
     private Handler handler = new Handler();
     private boolean isFirstResume = true;
+
+    // File upload support
+    private static final int FILE_CHOOSER_REQUEST = 100;
+    private static final int CAMERA_PERMISSION_REQUEST = 101;
+    private ValueCallback<Uri[]> fileUploadCallback;
+    private String cameraPhotoPath;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -112,12 +135,52 @@ public class MainActivity extends Activity {
             }
         });
 
-        // Set WebChromeClient for progress updates
+        // Set WebChromeClient for progress updates and file upload handling
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
             public void onProgressChanged(WebView view, int newProgress) {
                 super.onProgressChanged(view, newProgress);
                 progressBar.setProgress(newProgress);
+            }
+
+            @Override
+            public boolean onShowFileChooser(WebView webView, ValueCallback<Uri[]> callback,
+                                             FileChooserParams fileChooserParams) {
+                // Cancel any existing callback
+                if (fileUploadCallback != null) {
+                    fileUploadCallback.onReceiveValue(null);
+                }
+                fileUploadCallback = callback;
+
+                // Check if the accept types indicate image capture
+                String[] acceptTypes = fileChooserParams.getAcceptTypes();
+                boolean wantsImage = false;
+                if (acceptTypes != null) {
+                    for (String type : acceptTypes) {
+                        if (type != null && type.contains("image")) {
+                            wantsImage = true;
+                            break;
+                        }
+                    }
+                }
+
+                // Check if capture mode is requested
+                boolean captureMode = fileChooserParams.isCaptureEnabled();
+
+                if (wantsImage && captureMode) {
+                    // Direct camera capture — check permission first
+                    if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.CAMERA)
+                            != PackageManager.PERMISSION_GRANTED) {
+                        ActivityCompat.requestPermissions(MainActivity.this,
+                                new String[]{Manifest.permission.CAMERA}, CAMERA_PERMISSION_REQUEST);
+                        return true;
+                    }
+                    launchCamera();
+                } else {
+                    // Show chooser with both camera and file picker options
+                    launchFileChooser(wantsImage);
+                }
+                return true;
             }
         });
 
@@ -130,6 +193,112 @@ public class MainActivity extends Activity {
         // Check for app updates on cold start (force check)
         UpdateManager updateManager = new UpdateManager(this);
         updateManager.checkForUpdates(true);
+    }
+
+    private void launchCamera() {
+        Intent cameraIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        if (cameraIntent.resolveActivity(getPackageManager()) != null) {
+            File photoFile = null;
+            try {
+                photoFile = createImageFile();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            if (photoFile != null) {
+                cameraPhotoPath = photoFile.getAbsolutePath();
+                Uri photoUri = FileProvider.getUriForFile(this,
+                        "com.dfirentals.rms.fileprovider", photoFile);
+                cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoUri);
+                startActivityForResult(cameraIntent, FILE_CHOOSER_REQUEST);
+            } else {
+                cancelFileUpload();
+            }
+        } else {
+            cancelFileUpload();
+        }
+    }
+
+    private void launchFileChooser(boolean wantsImage) {
+        // Camera intent
+        Intent cameraIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        File photoFile = null;
+        try {
+            photoFile = createImageFile();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        if (photoFile != null) {
+            cameraPhotoPath = photoFile.getAbsolutePath();
+            Uri photoUri = FileProvider.getUriForFile(this,
+                    "com.dfirentals.rms.fileprovider", photoFile);
+            cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoUri);
+        }
+
+        // File picker intent
+        Intent fileIntent = new Intent(Intent.ACTION_GET_CONTENT);
+        fileIntent.addCategory(Intent.CATEGORY_OPENABLE);
+        fileIntent.setType(wantsImage ? "image/*" : "*/*");
+
+        // Combine into chooser
+        Intent chooserIntent = Intent.createChooser(fileIntent, "Choose an option");
+        if (photoFile != null) {
+            chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, new Intent[]{cameraIntent});
+        }
+        startActivityForResult(chooserIntent, FILE_CHOOSER_REQUEST);
+    }
+
+    private File createImageFile() throws IOException {
+        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date());
+        String fileName = "QC_" + timeStamp + "_";
+        File storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
+        return File.createTempFile(fileName, ".jpg", storageDir);
+    }
+
+    private void cancelFileUpload() {
+        if (fileUploadCallback != null) {
+            fileUploadCallback.onReceiveValue(null);
+            fileUploadCallback = null;
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        if (requestCode == FILE_CHOOSER_REQUEST) {
+            if (fileUploadCallback == null) return;
+
+            Uri[] results = null;
+            if (resultCode == Activity.RESULT_OK) {
+                if (data != null && data.getData() != null) {
+                    // File was picked from gallery/files
+                    results = new Uri[]{data.getData()};
+                } else if (cameraPhotoPath != null) {
+                    // Photo was taken with camera
+                    File photoFile = new File(cameraPhotoPath);
+                    if (photoFile.exists() && photoFile.length() > 0) {
+                        results = new Uri[]{Uri.fromFile(photoFile)};
+                    }
+                }
+            }
+
+            fileUploadCallback.onReceiveValue(results);
+            fileUploadCallback = null;
+            cameraPhotoPath = null;
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == CAMERA_PERMISSION_REQUEST) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                launchCamera();
+            } else {
+                // Permission denied — fall back to file picker
+                launchFileChooser(true);
+            }
+        }
     }
 
     @Override
