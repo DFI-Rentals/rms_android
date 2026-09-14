@@ -18,4 +18,10 @@
         <item name="android:statusBarColor">@color/rms_surface</item>
         <item name="android:windowLightStatusBar">true</item>
     </style>
+    <style name="Theme.Rms.Alert" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:windowBackground">#121212</item>
+        <item name="android:statusBarColor">#121212</item>
+        <item name="android:navigationBarColor">#121212</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
 </resources>

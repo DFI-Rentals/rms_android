@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Call-style alert. Dark RMS surface, brand green accent, big tap targets. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#121212"
+    android:gravity="center_horizontal"
+    android:orientation="vertical"
+    android:paddingLeft="28dp"
+    android:paddingRight="28dp"
+    android:paddingTop="72dp"
+    android:paddingBottom="40dp">
+
+    <TextView
+        android:id="@+id/alertKicker"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="DFI RMS"
+        android:textColor="#7DD654"
+        android:textSize="14sp"
+        android:letterSpacing="0.12"
+        android:textAllCaps="true" />
+
+    <FrameLayout
+        android:layout_width="160dp"
+        android:layout_height="160dp"
+        android:layout_marginTop="40dp">
+
+        <View
+            android:id="@+id/alertPulse"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/bg_alert_pulse" />
+
+        <ImageView
+            android:layout_width="72dp"
+            android:layout_height="72dp"
+            android:layout_gravity="center"
+            android:src="@drawable/ic_stat_rms"
+            android:contentDescription="Alert" />
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/alertTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="40dp"
+        android:gravity="center"
+        android:text="New waitlist customer"
+        android:textColor="#FFFFFF"
+        android:textSize="30sp"
+        android:lineSpacingMultiplier="1.05" />
+
+    <TextView
+        android:id="@+id/alertBody"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:gravity="center"
+        android:text=""
+        android:textColor="#A0A0A5"
+        android:textSize="17sp"
+        android:lineSpacingMultiplier="1.2" />
+
+    <View
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <TextView
+        android:id="@+id/alertAccept"
+        android:layout_width="match_parent"
+        android:layout_height="64dp"
+        android:background="@drawable/bg_alert_accept"
+        android:gravity="center"
+        android:text="Accept"
+        android:textColor="#121212"
+        android:textSize="19sp"
+        android:clickable="true"
+        android:focusable="true" />
+
+    <TextView
+        android:id="@+id/alertDismiss"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/bg_alert_dismiss"
+        android:gravity="center"
+        android:text="Dismiss"
+        android:textColor="#FFFFFF"
+        android:textSize="17sp"
+        android:clickable="true"
+        android:focusable="true" />
+</LinearLayout>

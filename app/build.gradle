@@ -9,8 +9,24 @@ android {
         applicationId "com.dfirentals.rms"
         minSdk 21
         targetSdk 30
-        versionCode 10
-        versionName "1.9"
+        versionCode 11
+        versionName "2.0"
+    }
+
+    // prod = the real app. preview = same code under a second applicationId so
+    // it installs NEXT TO the real app on a device for previews (never released).
+    flavorDimensions "channel"
+    productFlavors {
+        prod {
+            dimension "channel"
+            resValue "string", "app_name", "DFI Rentals RMS"
+        }
+        preview {
+            dimension "channel"
+            applicationIdSuffix ".preview"
+            versionNameSuffix "-preview"
+            resValue "string", "app_name", "DFI RMS Preview"
+        }
     }
 
     signingConfigs {

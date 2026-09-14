@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Build;
 import android.os.Environment;
 import android.provider.MediaStore;
 import android.webkit.ValueCallback;
@@ -235,6 +236,7 @@ public class MainActivity extends Activity {
     // File upload support
     private static final int FILE_CHOOSER_REQUEST = 100;
     private static final int CAMERA_PERMISSION_REQUEST = 101;
+    private static final int NOTIFICATION_PERMISSION_REQUEST = 102;
     private ValueCallback<Uri[]> fileUploadCallback;
     private String cameraPhotoPath;
 
@@ -395,18 +397,50 @@ public class MainActivity extends Activity {
             }
         });
 
-        // Load the website (debug builds may be pointed at a local dev server)
+        // Load the website (debug builds may be pointed at a local dev server).
+        // An alert's Accept / tap hands us a path to open (rms_path).
         pageUrl = resolvePageUrl();
-        webView.loadUrl(pageUrl);
+        webView.loadUrl(withPath(pageUrl, getIntent().getStringExtra("rms_path")));
+
+        // Alerts: channels exist from the start; Android 13+ needs the runtime
+        // notification permission or nothing (including the call screen) shows.
+        AlertNotifier.ensureChannels(this);
+        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission("android.permission.POST_NOTIFICATIONS")
+                != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{"android.permission.POST_NOTIFICATIONS"}, NOTIFICATION_PERMISSION_REQUEST);
+        }
 
         // Start keyboard suppression when in scanner mode
         startKeyboardSuppression();
 
         // Check for app updates on cold start (force check). Debug builds skip
         // it: a local build is never something GitHub should replace.
-        if (!BuildConfig.DEBUG) {
+        if (!BuildConfig.DEBUG && !isPreviewFlavor()) {
             UpdateManager updateManager = new UpdateManager(this);
             updateManager.checkForUpdates(true);
+        }
+    }
+
+    /** The side-by-side preview install must never try to "update" itself from GitHub. */
+    private boolean isPreviewFlavor() {
+        return getPackageName().endsWith(".preview");
+    }
+
+    /** base + path for alert deep links (path like /apps/waitlist); base alone when no path. */
+    private static String withPath(String base, String path) {
+        if (path == null || path.trim().isEmpty()) return base;
+        String b = base.endsWith("/") ? base.substring(0, base.length() - 1) : base;
+        String p = path.startsWith("/") ? path : "/" + path;
+        return b + p;
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        String path = intent.getStringExtra("rms_path");
+        if (path != null && webView != null) {
+            webView.loadUrl(withPath(pageUrl, path));
         }
     }
 
@@ -438,7 +472,7 @@ public class MainActivity extends Activity {
             if (photoFile != null) {
                 cameraPhotoPath = photoFile.getAbsolutePath();
                 Uri photoUri = FileProvider.getUriForFile(this,
-                        "com.dfirentals.rms.fileprovider", photoFile);
+                        getPackageName() + ".fileprovider", photoFile);
                 cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoUri);
                 startActivityForResult(cameraIntent, FILE_CHOOSER_REQUEST);
             } else {
@@ -461,7 +495,7 @@ public class MainActivity extends Activity {
         if (photoFile != null) {
             cameraPhotoPath = photoFile.getAbsolutePath();
             Uri photoUri = FileProvider.getUriForFile(this,
-                    "com.dfirentals.rms.fileprovider", photoFile);
+                    getPackageName() + ".fileprovider", photoFile);
             cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoUri);
         }
 
@@ -543,7 +577,7 @@ public class MainActivity extends Activity {
         }
 
         // Check for updates when returning from background (throttled)
-        if (!BuildConfig.DEBUG) {
+        if (!BuildConfig.DEBUG && !isPreviewFlavor()) {
             UpdateManager updateManager = new UpdateManager(this);
             updateManager.checkForUpdates(false);
         }
