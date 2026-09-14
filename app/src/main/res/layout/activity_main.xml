@@ -53,30 +53,42 @@
             android:textColor="@color/rms_text_primary"
             android:textSize="13sp" />
 
-        <!-- Segmented control: Auto / Keyboard / Scanner (badge-modal Scanner|Camera pattern) -->
-        <LinearLayout
+        <!-- Segmented control: Auto / Keyboard / Scanner (badge-modal Scanner|Camera
+             pattern). The white thumb is one view that slides between segments. -->
+        <FrameLayout
             android:id="@+id/modeGroup"
             android:layout_width="wrap_content"
             android:layout_height="36dp"
             android:background="@drawable/bg_segment_track"
-            android:orientation="horizontal"
             android:padding="3dp">
 
-            <TextView
-                android:id="@+id/modeAuto"
-                style="@style/RmsSegment"
-                android:text="Auto" />
+            <View
+                android:id="@+id/segmentThumb"
+                android:layout_width="1dp"
+                android:layout_height="match_parent"
+                android:background="@drawable/bg_segment_active" />
 
-            <TextView
-                android:id="@+id/modeKeyboard"
-                style="@style/RmsSegment"
-                android:text="Keyboard" />
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:orientation="horizontal">
 
-            <TextView
-                android:id="@+id/modeScanner"
-                style="@style/RmsSegment"
-                android:text="Scanner" />
-        </LinearLayout>
+                <TextView
+                    android:id="@+id/modeAuto"
+                    style="@style/RmsSegment"
+                    android:text="Auto" />
+
+                <TextView
+                    android:id="@+id/modeKeyboard"
+                    style="@style/RmsSegment"
+                    android:text="Keyboard" />
+
+                <TextView
+                    android:id="@+id/modeScanner"
+                    style="@style/RmsSegment"
+                    android:text="Scanner" />
+            </LinearLayout>
+        </FrameLayout>
 
     </LinearLayout>
 

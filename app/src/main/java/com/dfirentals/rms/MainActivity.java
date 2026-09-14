@@ -18,8 +18,12 @@ import android.view.KeyEvent;
 import android.graphics.Bitmap;
 import android.widget.ProgressBar;
 import android.view.View;
-import android.widget.LinearLayout;
+import android.widget.FrameLayout;
 import android.graphics.Typeface;
+import android.animation.ValueAnimator;
+import android.animation.ArgbEvaluator;
+import android.view.animation.AccelerateDecelerateInterpolator;
+import android.view.ViewGroup;
 import android.content.SharedPreferences;
 import android.webkit.JavascriptInterface;
 import android.view.inputmethod.InputMethodManager;
@@ -44,8 +48,12 @@ import java.util.Locale;
 public class MainActivity extends Activity {
     private WebView webView;
     private ProgressBar progressBar;
-    private LinearLayout modeGroup;
+    private FrameLayout modeGroup;
+    private View segmentThumb;
     private TextView modeAuto, modeKeyboard, modeScanner;
+    private ValueAnimator segmentAnimator;
+    private boolean thumbPlaced = false;
+    private static final long SEGMENT_ANIM_MS = 240;
     private View statusDot;
     private TextView currentModeText;
     private Handler handler = new Handler();
@@ -155,14 +163,67 @@ public class MainActivity extends Activity {
         currentModeText.setText(text);
         statusDot.setBackgroundResource(scannerLive ? R.drawable.status_dot_on : R.drawable.status_dot_off);
 
-        styleSegment(modeAuto, inputMode == MODE_AUTO);
-        styleSegment(modeKeyboard, inputMode == MODE_KEYBOARD);
-        styleSegment(modeScanner, inputMode == MODE_SCANNER);
+        moveThumbTo(activeSegment(), thumbPlaced);
     }
 
-    private void styleSegment(TextView seg, boolean active) {
-        seg.setBackgroundResource(active ? R.drawable.bg_segment_active : R.drawable.bg_segment_inactive);
-        seg.setTextColor(getResources().getColor(active ? R.color.rms_text_primary : R.color.rms_text_secondary));
+    private TextView activeSegment() {
+        return inputMode == MODE_KEYBOARD ? modeKeyboard : inputMode == MODE_SCANNER ? modeScanner : modeAuto;
+    }
+
+    /** Slide + resize the white thumb under `target` and crossfade the label colors (ease in-out). */
+    private void moveThumbTo(final TextView target, boolean animate) {
+        if (target.getWidth() == 0) {
+            // Not laid out yet (first frame): place it once layout is done, without animating.
+            target.post(new Runnable() {
+                @Override public void run() { moveThumbTo(target, false); }
+            });
+            return;
+        }
+        final int toX = target.getLeft();
+        final int toW = target.getWidth();
+        final int activeColor = getResources().getColor(R.color.rms_text_primary);
+        final int inactiveColor = getResources().getColor(R.color.rms_text_secondary);
+        final TextView[] segs = { modeAuto, modeKeyboard, modeScanner };
+
+        if (segmentAnimator != null) segmentAnimator.cancel();
+
+        if (!animate) {
+            setThumb(toX, toW);
+            for (TextView seg : segs) seg.setTextColor(seg == target ? activeColor : inactiveColor);
+            thumbPlaced = true;
+            return;
+        }
+
+        final float fromX = segmentThumb.getTranslationX();
+        final int fromW = segmentThumb.getWidth();
+        final int[] fromColors = new int[segs.length];
+        for (int i = 0; i < segs.length; i++) fromColors[i] = segs[i].getCurrentTextColor();
+        final ArgbEvaluator argb = new ArgbEvaluator();
+
+        segmentAnimator = ValueAnimator.ofFloat(0f, 1f);
+        segmentAnimator.setDuration(SEGMENT_ANIM_MS);
+        segmentAnimator.setInterpolator(new AccelerateDecelerateInterpolator());
+        segmentAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+            @Override
+            public void onAnimationUpdate(ValueAnimator a) {
+                float t = (float) a.getAnimatedValue();
+                setThumb(Math.round(fromX + (toX - fromX) * t), Math.round(fromW + (toW - fromW) * t));
+                for (int i = 0; i < segs.length; i++) {
+                    int to = segs[i] == target ? activeColor : inactiveColor;
+                    segs[i].setTextColor((Integer) argb.evaluate(t, fromColors[i], to));
+                }
+            }
+        });
+        segmentAnimator.start();
+    }
+
+    private void setThumb(int x, int width) {
+        ViewGroup.LayoutParams lp = segmentThumb.getLayoutParams();
+        if (lp.width != width) {
+            lp.width = width;
+            segmentThumb.setLayoutParams(lp);
+        }
+        segmentThumb.setTranslationX(x);
     }
 
     private void setInputMode(int mode) {
@@ -185,6 +246,7 @@ public class MainActivity extends Activity {
         webView = findViewById(R.id.webview);
         progressBar = findViewById(R.id.progressBar);
         modeGroup = findViewById(R.id.modeGroup);
+        segmentThumb = findViewById(R.id.segmentThumb);
         modeAuto = findViewById(R.id.modeAuto);
         modeKeyboard = findViewById(R.id.modeKeyboard);
         modeScanner = findViewById(R.id.modeScanner);
