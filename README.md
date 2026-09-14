@@ -14,8 +14,12 @@ This app provides a native Android interface to access the DFI Rentals RMS web a
 ## Features
 
 - **WebView Integration**: Full access to all RMS web application features
-- **Scanner Mode**: Hardware barcode scanner support for warehouse devices
-- **Keyboard Mode**: On-screen keyboard for manual text input
+- **Auto input mode** (default): the RMS marks its hidden scanner fields with
+  `data-scan-capture`; the app injects a small focus watcher into the page and
+  hides the soft keyboard only while one of those fields is focused. Normal
+  text fields get the keyboard as usual, so staff no longer toggle by hand.
+- **Scanner Mode** (override): keep the soft keyboard hidden everywhere
+- **Keyboard Mode** (override): always allow the on-screen keyboard
 - **Auto-Updates**: Automatically checks for and installs updates from GitHub releases
 - **Session Management**: Maintains login sessions across app restarts
 

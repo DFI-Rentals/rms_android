@@ -33,7 +33,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Input Mode:"
+            android:text="Input:"
             android:textSize="12sp"
             android:textColor="#424242" />
 
@@ -43,18 +43,39 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:layout_marginLeft="8dp"
-            android:text="Barcode Scanner Input"
+            android:text="Auto: keyboard"
             android:textSize="12sp"
             android:textColor="#1976D2"
             android:textStyle="bold" />
 
-        <Switch
-            android:id="@+id/modeSwitch"
+        <RadioGroup
+            android:id="@+id/modeGroup"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:checked="false"
-            android:textOff=""
-            android:textOn="" />
+            android:orientation="horizontal">
+
+            <RadioButton
+                android:id="@+id/modeAuto"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:checked="true"
+                android:text="Auto"
+                android:textSize="12sp" />
+
+            <RadioButton
+                android:id="@+id/modeKeyboard"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Keyboard"
+                android:textSize="12sp" />
+
+            <RadioButton
+                android:id="@+id/modeScanner"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Scanner"
+                android:textSize="12sp" />
+        </RadioGroup>
 
     </LinearLayout>
 

@@ -16,8 +16,9 @@ import android.view.KeyEvent;
 import android.graphics.Bitmap;
 import android.widget.ProgressBar;
 import android.view.View;
-import android.widget.Switch;
-import android.widget.CompoundButton;
+import android.widget.RadioGroup;
+import android.content.SharedPreferences;
+import android.webkit.JavascriptInterface;
 import android.view.inputmethod.InputMethodManager;
 import android.content.Context;
 import android.view.ActionMode;
@@ -40,11 +41,108 @@ import java.util.Locale;
 public class MainActivity extends Activity {
     private WebView webView;
     private ProgressBar progressBar;
-    private Switch modeSwitch;
+    private RadioGroup modeGroup;
     private TextView currentModeText;
-    private boolean isKeyboardMode = false;
     private Handler handler = new Handler();
     private boolean isFirstResume = true;
+
+    // ── Input mode ────────────────────────────────────────────────────────
+    // The Zebra wedge types scans through the keyboard connection whatever we
+    // do; "scanner mode" only means "keep the soft keyboard hidden". AUTO asks
+    // the web app: every hidden scan-capture input in the RMS carries
+    // data-scan-capture="" and the injected watcher below reports whether one
+    // of them holds focus. KEYBOARD / SCANNER are manual overrides.
+    private static final int MODE_AUTO = 0;
+    private static final int MODE_KEYBOARD = 1;
+    private static final int MODE_SCANNER = 2;
+    private static final String PREFS = "rms_input";
+    private static final String PREF_MODE = "input_mode";
+    private int inputMode = MODE_AUTO;
+    private boolean scanFieldFocused = false; // reported by the page via RmsAndroid.onScanFocus
+
+    /** Runs inside the page once per document load. Watches focus and tells us
+     *  whether the active element is one of the RMS scan-capture inputs. */
+    private static final String SCAN_WATCH_JS =
+            "(function(){" +
+            "if(window.__rmsScanWatch)return;window.__rmsScanWatch=true;" +
+            "var last=null,t=null;" +
+            "function report(){t=null;var a=document.activeElement;" +
+            "var f=!!(a&&a.matches&&a.matches('[data-scan-capture]'));" +
+            "if(f!==last){last=f;try{RmsAndroid.onScanFocus(f);}catch(e){}}}" +
+            "function sched(){if(t)clearTimeout(t);t=setTimeout(report,30);}" +
+            "document.addEventListener('focusin',sched,true);" +
+            "document.addEventListener('focusout',sched,true);" +
+            "document.addEventListener('visibilitychange',sched,true);" +
+            "setInterval(report,1000);" + // belt and braces: catches focus() calls that fire no event we see
+            "report();" +
+            "})();";
+
+    /** Exposed to the page as window.RmsAndroid. */
+    private class RmsAndroidBridge {
+        @JavascriptInterface
+        public void onScanFocus(final boolean focused) {
+            handler.post(new Runnable() {
+                @Override
+                public void run() {
+                    if (scanFieldFocused == focused) return;
+                    scanFieldFocused = focused;
+                    applyInputMode();
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public String getInputMode() {
+            return inputMode == MODE_KEYBOARD ? "keyboard" : inputMode == MODE_SCANNER ? "scanner" : "auto";
+        }
+    }
+
+    private boolean shouldHideKeyboard() {
+        if (inputMode == MODE_SCANNER) return true;
+        if (inputMode == MODE_KEYBOARD) return false;
+        return scanFieldFocused;
+    }
+
+    private void hideKeyboard() {
+        InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+        if (imm != null) {
+            imm.hideSoftInputFromWindow(webView.getWindowToken(), 0);
+        }
+    }
+
+    /** Re-evaluate after the mode or the page's focus report changes. */
+    private void applyInputMode() {
+        if (shouldHideKeyboard()) {
+            hideKeyboard();
+        } else if (inputMode == MODE_KEYBOARD) {
+            webView.requestFocus();
+            InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+            if (imm != null) {
+                imm.showSoftInput(webView, InputMethodManager.SHOW_IMPLICIT);
+            }
+        }
+        // AUTO + no scan field focused: do nothing — the WebView shows the
+        // keyboard itself when a normal field takes focus.
+        updateModeText();
+    }
+
+    private void updateModeText() {
+        String text;
+        if (inputMode == MODE_SCANNER) {
+            text = "Barcode Scanner Input";
+        } else if (inputMode == MODE_KEYBOARD) {
+            text = "Keyboard Input";
+        } else {
+            text = scanFieldFocused ? "Auto: scanner (scan field active)" : "Auto: keyboard";
+        }
+        currentModeText.setText(text);
+    }
+
+    private void setInputMode(int mode) {
+        inputMode = mode;
+        getSharedPreferences(PREFS, MODE_PRIVATE).edit().putInt(PREF_MODE, mode).apply();
+        applyInputMode();
+    }
 
     // File upload support
     private static final int FILE_CHOOSER_REQUEST = 100;
@@ -59,43 +157,31 @@ public class MainActivity extends Activity {
 
         webView = findViewById(R.id.webview);
         progressBar = findViewById(R.id.progressBar);
-        modeSwitch = findViewById(R.id.modeSwitch);
+        modeGroup = findViewById(R.id.modeGroup);
         currentModeText = findViewById(R.id.currentModeText);
 
-        // Override WebView to prevent keyboard in scanner mode
+        // Restore the last chosen mode (Auto by default)
+        inputMode = getSharedPreferences(PREFS, MODE_PRIVATE).getInt(PREF_MODE, MODE_AUTO);
+        modeGroup.check(inputMode == MODE_KEYBOARD ? R.id.modeKeyboard
+                : inputMode == MODE_SCANNER ? R.id.modeScanner : R.id.modeAuto);
+        updateModeText();
+
+        // Keep the keyboard down when the WebView takes focus while a scan field is active
         webView.setOnFocusChangeListener(new View.OnFocusChangeListener() {
             @Override
             public void onFocusChange(View v, boolean hasFocus) {
-                if (!isKeyboardMode && hasFocus) {
-                    InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
-                    if (imm != null) {
-                        imm.hideSoftInputFromWindow(webView.getWindowToken(), 0);
-                    }
+                if (hasFocus && shouldHideKeyboard()) {
+                    hideKeyboard();
                 }
             }
         });
 
-        // Set up the mode switch listener
-        modeSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+        modeGroup.setOnCheckedChangeListener(new RadioGroup.OnCheckedChangeListener() {
             @Override
-            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                isKeyboardMode = isChecked;
-                if (isKeyboardMode) {
-                    // Keyboard mode - show soft keyboard
-                    currentModeText.setText("Keyboard Input");
-                    webView.requestFocus();
-                    InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
-                    if (imm != null) {
-                        imm.showSoftInput(webView, InputMethodManager.SHOW_IMPLICIT);
-                    }
-                } else {
-                    // Scanner mode - hide soft keyboard
-                    currentModeText.setText("Barcode Scanner Input");
-                    InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
-                    if (imm != null) {
-                        imm.hideSoftInputFromWindow(webView.getWindowToken(), 0);
-                    }
-                }
+            public void onCheckedChanged(RadioGroup group, int checkedId) {
+                if (checkedId == R.id.modeKeyboard) setInputMode(MODE_KEYBOARD);
+                else if (checkedId == R.id.modeScanner) setInputMode(MODE_SCANNER);
+                else setInputMode(MODE_AUTO);
             }
         });
 
@@ -114,18 +200,29 @@ public class MainActivity extends Activity {
         webSettings.setCacheMode(WebSettings.LOAD_DEFAULT);
         webSettings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
 
+        // Page → app focus reports (only @JavascriptInterface methods are exposed)
+        webView.addJavascriptInterface(new RmsAndroidBridge(), "RmsAndroid");
+
         // Set WebViewClient to handle page navigation
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public void onPageStarted(WebView view, String url, Bitmap favicon) {
                 super.onPageStarted(view, url, favicon);
                 progressBar.setVisibility(View.VISIBLE);
+                // New document: nothing is focused until the page says otherwise
+                if (scanFieldFocused) {
+                    scanFieldFocused = false;
+                    updateModeText();
+                }
             }
 
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
                 progressBar.setVisibility(View.GONE);
+                // The RMS is a single-page app, so this runs once per full load;
+                // the watcher's document listeners survive in-app navigation.
+                view.evaluateJavascript(SCAN_WATCH_JS, null);
             }
 
             @Override
@@ -319,7 +416,7 @@ public class MainActivity extends Activity {
     private Runnable keyboardSuppressor = new Runnable() {
         @Override
         public void run() {
-            if (!isKeyboardMode) {
+            if (shouldHideKeyboard()) {
                 InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
                 if (imm != null && imm.isActive()) {
                     imm.hideSoftInputFromWindow(webView.getWindowToken(), 0);
