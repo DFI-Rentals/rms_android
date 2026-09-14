@@ -10,6 +10,8 @@
         android:layout_height="3dp"
         android:layout_alignParentTop="true"
         android:max="100"
+        android:progressTint="@color/rms_text_primary"
+        android:progressBackgroundTint="@color/rms_border"
         android:visibility="gone" />
 
     <WebView
@@ -22,20 +24,21 @@
     <LinearLayout
         android:id="@+id/toggleBar"
         android:layout_width="match_parent"
-        android:layout_height="36dp"
+        android:layout_height="48dp"
         android:layout_alignParentBottom="true"
-        android:background="#E0E0E0"
+        android:background="@drawable/bg_input_bar"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:paddingLeft="12dp"
-        android:paddingRight="12dp">
+        android:paddingLeft="16dp"
+        android:paddingRight="12dp"
+        android:paddingTop="1dp">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Input:"
-            android:textSize="12sp"
-            android:textColor="#424242" />
+        <!-- Status: dot + label, mirrors the RMS "Ready to scan" indicator -->
+        <View
+            android:id="@+id/statusDot"
+            android:layout_width="8dp"
+            android:layout_height="8dp"
+            android:background="@drawable/status_dot_off" />
 
         <TextView
             android:id="@+id/currentModeText"
@@ -43,39 +46,37 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:layout_marginLeft="8dp"
-            android:text="Auto: keyboard"
-            android:textSize="12sp"
-            android:textColor="#1976D2"
-            android:textStyle="bold" />
+            android:layout_marginRight="8dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="Keyboard"
+            android:textColor="@color/rms_text_primary"
+            android:textSize="13sp" />
 
-        <RadioGroup
+        <!-- Segmented control: Auto / Keyboard / Scanner (badge-modal Scanner|Camera pattern) -->
+        <LinearLayout
             android:id="@+id/modeGroup"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal">
+            android:layout_height="36dp"
+            android:background="@drawable/bg_segment_track"
+            android:orientation="horizontal"
+            android:padding="3dp">
 
-            <RadioButton
+            <TextView
                 android:id="@+id/modeAuto"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:checked="true"
-                android:text="Auto"
-                android:textSize="12sp" />
+                style="@style/RmsSegment"
+                android:text="Auto" />
 
-            <RadioButton
+            <TextView
                 android:id="@+id/modeKeyboard"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Keyboard"
-                android:textSize="12sp" />
+                style="@style/RmsSegment"
+                android:text="Keyboard" />
 
-            <RadioButton
+            <TextView
                 android:id="@+id/modeScanner"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Scanner"
-                android:textSize="12sp" />
-        </RadioGroup>
+                style="@style/RmsSegment"
+                android:text="Scanner" />
+        </LinearLayout>
 
     </LinearLayout>
 

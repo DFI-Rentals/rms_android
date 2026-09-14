@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The gray pill behind the segments (bg-gray-100 rounded-lg p-1 in the badge modal) -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@color/rms_surface_muted" />
+    <corners android:radius="10dp" />
+</shape>

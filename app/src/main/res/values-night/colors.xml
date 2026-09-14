@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Dark theme values from the RMS index.css prefers-color-scheme: dark block. -->
+<resources>
+    <color name="rms_surface">#1C1C1E</color>
+    <color name="rms_surface_muted">#2A2A2D</color>
+    <color name="rms_border">#3A3A3D</color>
+    <color name="rms_text_primary">#F2F2F2</color>
+    <color name="rms_text_secondary">#A0A0A5</color>
+    <color name="rms_text_muted">#6B6B70</color>
+    <color name="rms_success">#7DD654</color>
+    <color name="rms_success_deep">#9BE47A</color>
+    <color name="rms_segment_active">#3A3A3E</color>
+    <color name="rms_segment_shadow">#33000000</color>
+</resources>

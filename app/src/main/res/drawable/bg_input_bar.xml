@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- White surface with the RMS 1px top divider -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle"><solid android:color="@color/rms_border" /></shape>
+    </item>
+    <item android:top="1dp">
+        <shape android:shape="rectangle"><solid android:color="@color/rms_surface" /></shape>
+    </item>
+</layer-list>

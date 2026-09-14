@@ -18,7 +18,8 @@ import android.view.KeyEvent;
 import android.graphics.Bitmap;
 import android.widget.ProgressBar;
 import android.view.View;
-import android.widget.RadioGroup;
+import android.widget.LinearLayout;
+import android.graphics.Typeface;
 import android.content.SharedPreferences;
 import android.webkit.JavascriptInterface;
 import android.view.inputmethod.InputMethodManager;
@@ -43,7 +44,9 @@ import java.util.Locale;
 public class MainActivity extends Activity {
     private WebView webView;
     private ProgressBar progressBar;
-    private RadioGroup modeGroup;
+    private LinearLayout modeGroup;
+    private TextView modeAuto, modeKeyboard, modeScanner;
+    private View statusDot;
     private TextView currentModeText;
     private Handler handler = new Handler();
     private boolean isFirstResume = true;
@@ -64,7 +67,7 @@ public class MainActivity extends Activity {
     // Debug builds accept an override so the app can point at a local RMS dev
     // server from the emulator (10.0.2.2 = the host machine):
     //   adb shell am start -n com.dfirentals.rms/.MainActivity --es rms_url http://10.0.2.2:5173
-    // The override sticks until cleared with --es rms_url "" (or reinstall).
+    // The override sticks until cleared with --es rms_url prod (or reinstall).
     // Release builds always load production. See dev-emulator.sh.
     private static final String DEFAULT_URL = "https://rms2.dfirentals.com";
     private static final String PREF_DEBUG_URL = "debug_url";
@@ -138,16 +141,28 @@ public class MainActivity extends Activity {
         updateModeText();
     }
 
+    /** Status dot + label (the RMS "Ready to scan" indicator) and the active segment. */
     private void updateModeText() {
+        boolean scannerLive = shouldHideKeyboard();
         String text;
         if (inputMode == MODE_SCANNER) {
-            text = "Barcode Scanner Input";
+            text = "Scanner only";
         } else if (inputMode == MODE_KEYBOARD) {
-            text = "Keyboard Input";
+            text = "Keyboard only";
         } else {
-            text = scanFieldFocused ? "Auto: scanner" : "Auto: keyboard";
+            text = scanFieldFocused ? "Scanner ready" : "Keyboard";
         }
         currentModeText.setText(text);
+        statusDot.setBackgroundResource(scannerLive ? R.drawable.status_dot_on : R.drawable.status_dot_off);
+
+        styleSegment(modeAuto, inputMode == MODE_AUTO);
+        styleSegment(modeKeyboard, inputMode == MODE_KEYBOARD);
+        styleSegment(modeScanner, inputMode == MODE_SCANNER);
+    }
+
+    private void styleSegment(TextView seg, boolean active) {
+        seg.setBackgroundResource(active ? R.drawable.bg_segment_active : R.drawable.bg_segment_inactive);
+        seg.setTextColor(getResources().getColor(active ? R.color.rms_text_primary : R.color.rms_text_secondary));
     }
 
     private void setInputMode(int mode) {
@@ -170,12 +185,25 @@ public class MainActivity extends Activity {
         webView = findViewById(R.id.webview);
         progressBar = findViewById(R.id.progressBar);
         modeGroup = findViewById(R.id.modeGroup);
+        modeAuto = findViewById(R.id.modeAuto);
+        modeKeyboard = findViewById(R.id.modeKeyboard);
+        modeScanner = findViewById(R.id.modeScanner);
+        statusDot = findViewById(R.id.statusDot);
         currentModeText = findViewById(R.id.currentModeText);
+
+        // Saans, the RMS typeface (assets/fonts). Falls back to the system font.
+        try {
+            Typeface saansMedium = Typeface.createFromAsset(getAssets(), "fonts/Saans-Medium.otf");
+            Typeface saansRegular = Typeface.createFromAsset(getAssets(), "fonts/Saans-Regular.otf");
+            currentModeText.setTypeface(saansRegular);
+            modeAuto.setTypeface(saansMedium);
+            modeKeyboard.setTypeface(saansMedium);
+            modeScanner.setTypeface(saansMedium);
+        } catch (RuntimeException ignored) {
+        }
 
         // Restore the last chosen mode (Auto by default)
         inputMode = getSharedPreferences(PREFS, MODE_PRIVATE).getInt(PREF_MODE, MODE_AUTO);
-        modeGroup.check(inputMode == MODE_KEYBOARD ? R.id.modeKeyboard
-                : inputMode == MODE_SCANNER ? R.id.modeScanner : R.id.modeAuto);
         updateModeText();
 
         // Keep the keyboard down when the WebView takes focus while a scan field is active
@@ -188,13 +216,14 @@ public class MainActivity extends Activity {
             }
         });
 
-        modeGroup.setOnCheckedChangeListener(new RadioGroup.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(RadioGroup group, int checkedId) {
-                if (checkedId == R.id.modeKeyboard) setInputMode(MODE_KEYBOARD);
-                else if (checkedId == R.id.modeScanner) setInputMode(MODE_SCANNER);
-                else setInputMode(MODE_AUTO);
-            }
+        modeAuto.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { setInputMode(MODE_AUTO); }
+        });
+        modeKeyboard.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { setInputMode(MODE_KEYBOARD); }
+        });
+        modeScanner.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { setInputMode(MODE_SCANNER); }
         });
 
         // Configure WebView settings
@@ -325,7 +354,7 @@ public class MainActivity extends Activity {
         Intent intent = getIntent();
         if (intent != null && intent.hasExtra("rms_url")) {
             String override = intent.getStringExtra("rms_url");
-            if (override == null || override.trim().isEmpty()) {
+            if (override == null || override.trim().isEmpty() || override.trim().equalsIgnoreCase("prod")) {
                 prefs.edit().remove(PREF_DEBUG_URL).apply();
             } else {
                 prefs.edit().putString(PREF_DEBUG_URL, override.trim()).apply();

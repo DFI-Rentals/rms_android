@@ -64,8 +64,13 @@ cd "~/Desktop/DFI Code Projects/rms_android" && ./dev-emulator.sh
 APK (needs JDK 11-15 for Gradle 6.7: `brew install openjdk@11`), installs it,
 and launches the app with `--es rms_url http://10.0.2.2:5173` (10.0.2.2 is the
 host machine from inside the emulator). Debug builds remember the override;
-`./dev-emulator.sh prod` clears it. Release builds ignore it entirely and skip
-nothing. Debug builds also skip the GitHub update check.
+`./dev-emulator.sh prod` clears it. Release builds ignore it entirely. Debug
+builds also skip the GitHub update check.
+
+Give the AVD at least 4 CPU cores (`hw.cpu.ncore=4` in its config.ini). The
+default single-core Medium Phone starves the WebView renderer while the Vite
+dev bundle loads and Android shows "isn't responding" dialogs that have nothing
+to do with the app.
 
 ## Version Management
 

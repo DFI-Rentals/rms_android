@@ -16,7 +16,6 @@ ADB="$SDK/platform-tools/adb"
 EMU="$SDK/emulator/emulator"
 AVD="${AVD:-$("$EMU" -list-avds | head -1)}"
 URL="${1:-http://10.0.2.2:5173}"
-[ "$URL" = "prod" ] && URL=""
 
 if [ -z "${JAVA_HOME:-}" ]; then
   for c in /opt/homebrew/opt/openjdk@11/libexec/openjdk.jdk/Contents/Home \
@@ -40,4 +39,4 @@ echo "Emulator ready."
 "$ADB" install -r app/build/outputs/apk/debug/app-debug.apk
 "$ADB" shell am force-stop com.dfirentals.rms
 "$ADB" shell am start -n com.dfirentals.rms/.MainActivity --es rms_url "$URL"
-echo "Launched -> ${URL:-https://rms2.dfirentals.com}"
+echo "Launched -> $URL"

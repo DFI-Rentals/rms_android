@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Mirrors the RMS design tokens in src/index.css (the rgb-* variables). Keep in sync. -->
+<resources>
+    <color name="rms_surface">#FFFFFF</color>
+    <color name="rms_surface_muted">#F3F4F6</color>
+    <color name="rms_border">#E0E0E0</color>
+    <color name="rms_text_primary">#121212</color>
+    <color name="rms_text_secondary">#646464</color>
+    <color name="rms_text_muted">#9CA3AF</color>
+    <color name="rms_success">#7DD654</color>
+    <color name="rms_success_deep">#4D9932</color>
+    <color name="rms_segment_active">#FFFFFF</color>
+    <color name="rms_segment_shadow">#14000000</color>
+</resources>
