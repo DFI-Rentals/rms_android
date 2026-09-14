@@ -27,6 +27,10 @@ import android.view.animation.AccelerateDecelerateInterpolator;
 import android.view.ViewGroup;
 import android.content.SharedPreferences;
 import android.webkit.JavascriptInterface;
+import android.provider.Settings;
+import com.google.firebase.messaging.FirebaseMessaging;
+import org.json.JSONObject;
+import java.util.UUID;
 import android.view.inputmethod.InputMethodManager;
 import android.content.Context;
 import android.view.ActionMode;
@@ -115,9 +119,68 @@ public class MainActivity extends Activity {
             });
         }
 
+        /**
+         * Device identity for POST /rms/devices/register: a stable per-install id,
+         * hardware + OS + app version, Google Play services presence, and the
+         * current FCM token (null until Firebase hands one over).
+         */
+        @JavascriptInterface
+        public String getDeviceInfo() {
+            try {
+                JSONObject o = new JSONObject();
+                o.put("device_id", deviceId());
+                o.put("android_id", Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID));
+                o.put("manufacturer", Build.MANUFACTURER);
+                o.put("model", Build.MODEL);
+                o.put("os_version", Build.VERSION.RELEASE);
+                o.put("sdk_int", Build.VERSION.SDK_INT);
+                o.put("app_version", BuildConfig.VERSION_NAME);
+                o.put("app_id", getPackageName());
+                o.put("gms", hasGooglePlayServices());
+                String token = RmsMessagingService.storedToken(MainActivity.this);
+                o.put("fcm_token", token == null ? JSONObject.NULL : token);
+                return o.toString();
+            } catch (Exception e) {
+                return "{}";
+            }
+        }
+
         @JavascriptInterface
         public String getInputMode() {
             return inputMode == MODE_KEYBOARD ? "keyboard" : inputMode == MODE_SCANNER ? "scanner" : "auto";
+        }
+    }
+
+    /** Stable per-install device id (UUID minted once, kept in SharedPreferences). */
+    private String deviceId() {
+        SharedPreferences p = getSharedPreferences(PREFS, MODE_PRIVATE);
+        String id = p.getString("device_id", null);
+        if (id == null) {
+            id = UUID.randomUUID().toString();
+            p.edit().putString("device_id", id).apply();
+        }
+        return id;
+    }
+
+    private boolean hasGooglePlayServices() {
+        try {
+            getPackageManager().getPackageInfo("com.google.android.gms", 0);
+            return true;
+        } catch (PackageManager.NameNotFoundException e) {
+            return false;
+        }
+    }
+
+    /** Ask Firebase for the token at startup so getDeviceInfo() has it by the time the RMS logs in. */
+    private void refreshFcmToken() {
+        try {
+            FirebaseMessaging.getInstance().getToken().addOnSuccessListener(token -> {
+                if (token == null) return;
+                getSharedPreferences(RmsMessagingService.PREFS, MODE_PRIVATE).edit()
+                        .putString(RmsMessagingService.PREF_TOKEN, token)
+                        .putLong(RmsMessagingService.PREF_TOKEN_AT, System.currentTimeMillis()).apply();
+            });
+        } catch (Exception ignored) {
         }
     }
 
@@ -401,6 +464,8 @@ public class MainActivity extends Activity {
         // An alert's Accept / tap hands us a path to open (rms_path).
         pageUrl = resolvePageUrl();
         webView.loadUrl(withPath(pageUrl, getIntent().getStringExtra("rms_path")));
+
+        refreshFcmToken();
 
         // Alerts: channels exist from the start; Android 13+ needs the runtime
         // notification permission or nothing (including the call screen) shows.

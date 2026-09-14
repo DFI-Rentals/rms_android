@@ -38,6 +38,11 @@ public class AlertReceiver extends BroadcastReceiver {
         } else if (ACTION_PREVIEW.equals(action)) {
             boolean adb = Settings.Global.getInt(ctx.getContentResolver(), Settings.Global.ADB_ENABLED, 0) == 1;
             if (!adb) return;
+            if ("token".equals(intent.getStringExtra(AlertNotifier.EXTRA_KIND))) {
+                // Dev aid: print the FCM token so a first push can be tested over USB
+                android.util.Log.i("RmsDevice", "fcm_token=" + RmsMessagingService.storedToken(ctx));
+                return;
+            }
             AlertNotifier.show(ctx,
                     intent.getStringExtra(AlertNotifier.EXTRA_ID),
                     intent.getStringExtra(AlertNotifier.EXTRA_KIND) == null ? "call" : intent.getStringExtra(AlertNotifier.EXTRA_KIND),
