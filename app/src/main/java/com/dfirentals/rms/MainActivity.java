@@ -10,6 +10,8 @@ import android.provider.MediaStore;
 import android.webkit.ValueCallback;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.webkit.SslErrorHandler;
+import android.net.http.SslError;
 import android.webkit.WebSettings;
 import android.webkit.WebChromeClient;
 import android.view.KeyEvent;
@@ -57,6 +59,16 @@ public class MainActivity extends Activity {
     private static final int MODE_SCANNER = 2;
     private static final String PREFS = "rms_input";
     private static final String PREF_MODE = "input_mode";
+
+    // ── Page URL ──────────────────────────────────────────────────────────
+    // Debug builds accept an override so the app can point at a local RMS dev
+    // server from the emulator (10.0.2.2 = the host machine):
+    //   adb shell am start -n com.dfirentals.rms/.MainActivity --es rms_url http://10.0.2.2:5173
+    // The override sticks until cleared with --es rms_url "" (or reinstall).
+    // Release builds always load production. See dev-emulator.sh.
+    private static final String DEFAULT_URL = "https://rms2.dfirentals.com";
+    private static final String PREF_DEBUG_URL = "debug_url";
+    private String pageUrl = DEFAULT_URL;
     private int inputMode = MODE_AUTO;
     private boolean scanFieldFocused = false; // reported by the page via RmsAndroid.onScanFocus
 
@@ -133,7 +145,7 @@ public class MainActivity extends Activity {
         } else if (inputMode == MODE_KEYBOARD) {
             text = "Keyboard Input";
         } else {
-            text = scanFieldFocused ? "Auto: scanner (scan field active)" : "Auto: keyboard";
+            text = scanFieldFocused ? "Auto: scanner" : "Auto: keyboard";
         }
         currentModeText.setText(text);
     }
@@ -230,6 +242,17 @@ public class MainActivity extends Activity {
                 view.loadUrl(url);
                 return true;
             }
+
+            @Override
+            public void onReceivedSslError(WebView view, SslErrorHandler handler, SslError error) {
+                // Debug builds pointed at a local dev server may hit Vite's
+                // self-signed cert (HTTPS=1 npm run dev). Never relaxed in release.
+                if (BuildConfig.DEBUG && !pageUrl.equals(DEFAULT_URL)) {
+                    handler.proceed();
+                } else {
+                    super.onReceivedSslError(view, handler, error);
+                }
+            }
         });
 
         // Set WebChromeClient for progress updates and file upload handling
@@ -281,15 +304,35 @@ public class MainActivity extends Activity {
             }
         });
 
-        // Load the website
-        webView.loadUrl("https://rms2.dfirentals.com");
+        // Load the website (debug builds may be pointed at a local dev server)
+        pageUrl = resolvePageUrl();
+        webView.loadUrl(pageUrl);
 
         // Start keyboard suppression when in scanner mode
         startKeyboardSuppression();
 
-        // Check for app updates on cold start (force check)
-        UpdateManager updateManager = new UpdateManager(this);
-        updateManager.checkForUpdates(true);
+        // Check for app updates on cold start (force check). Debug builds skip
+        // it: a local build is never something GitHub should replace.
+        if (!BuildConfig.DEBUG) {
+            UpdateManager updateManager = new UpdateManager(this);
+            updateManager.checkForUpdates(true);
+        }
+    }
+
+    private String resolvePageUrl() {
+        if (!BuildConfig.DEBUG) return DEFAULT_URL;
+        SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+        Intent intent = getIntent();
+        if (intent != null && intent.hasExtra("rms_url")) {
+            String override = intent.getStringExtra("rms_url");
+            if (override == null || override.trim().isEmpty()) {
+                prefs.edit().remove(PREF_DEBUG_URL).apply();
+            } else {
+                prefs.edit().putString(PREF_DEBUG_URL, override.trim()).apply();
+            }
+        }
+        String saved = prefs.getString(PREF_DEBUG_URL, null);
+        return saved != null ? saved : DEFAULT_URL;
     }
 
     private void launchCamera() {
@@ -409,8 +452,10 @@ public class MainActivity extends Activity {
         }
 
         // Check for updates when returning from background (throttled)
-        UpdateManager updateManager = new UpdateManager(this);
-        updateManager.checkForUpdates(false);
+        if (!BuildConfig.DEBUG) {
+            UpdateManager updateManager = new UpdateManager(this);
+            updateManager.checkForUpdates(false);
+        }
     }
 
     private Runnable keyboardSuppressor = new Runnable() {

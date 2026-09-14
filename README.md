@@ -53,6 +53,20 @@ export JAVA_HOME=/path/to/jdk-11
 ./gradlew assembleRelease
 ```
 
+## Running against a local RMS in the emulator
+
+```bash
+cd ~/Desktop/rms && npm run dev            # RMS dev server on localhost:5173
+cd "~/Desktop/DFI Code Projects/rms_android" && ./dev-emulator.sh
+```
+
+`dev-emulator.sh` boots the first AVD if none is running, builds the debug
+APK (needs JDK 11-15 for Gradle 6.7: `brew install openjdk@11`), installs it,
+and launches the app with `--es rms_url http://10.0.2.2:5173` (10.0.2.2 is the
+host machine from inside the emulator). Debug builds remember the override;
+`./dev-emulator.sh prod` clears it. Release builds ignore it entirely and skip
+nothing. Debug builds also skip the GitHub update check.
+
 ## Version Management
 
 Version information is configured in `app/build.gradle`:
