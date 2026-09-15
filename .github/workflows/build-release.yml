@@ -36,7 +36,7 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: ./gradlew assembleRelease
+        run: ./gradlew assembleProdRelease
 
       - name: Create Release and Upload APK
         uses: softprops/action-gh-release@v1
@@ -51,8 +51,10 @@ jobs:
             3. Existing installations will be updated automatically
 
             ### What's New
-            - Latest updates and improvements
+            - Push alerts: call-style pages from User Management, delivered through Firebase
+            - Device registry: the app reports which staff member is signed in on it
+            - Build tools updated (Android 14 target)
           files: |
-            ./app/build/outputs/apk/release/app-release.apk
+            ./app/build/outputs/apk/prod/release/app-prod-release.apk
           draft: false
           prerelease: false
