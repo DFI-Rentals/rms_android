@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "715271434736",
+    "project_id": "rms2-ae9a9",
+    "storage_bucket": "rms2-ae9a9.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:715271434736:android:fbab7bbb31c51147356d35",
+        "android_client_info": {
+          "package_name": "com.dfirentals.rms"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBdxvGGRvP6C0e8OABuCEd8c_YdbbiGeOw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:715271434736:android:6dea381592b76263356d35",
+        "android_client_info": {
+          "package_name": "com.dfirentals.rms.preview"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBdxvGGRvP6C0e8OABuCEd8c_YdbbiGeOw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
