@@ -138,6 +138,7 @@ public class IncomingAlertActivity extends Activity {
         Intent open = new Intent(this, MainActivity.class)
                 .setAction(Intent.ACTION_VIEW)
                 .putExtra("rms_path", path)
+                .putExtra(AlertNotifier.EXTRA_ID, alertId)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             KeyguardManager km = (KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE);

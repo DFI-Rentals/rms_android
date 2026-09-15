@@ -463,7 +463,7 @@ public class MainActivity extends Activity {
         // Load the website (debug builds may be pointed at a local dev server).
         // An alert's Accept / tap hands us a path to open (rms_path).
         pageUrl = resolvePageUrl();
-        webView.loadUrl(withPath(pageUrl, getIntent().getStringExtra("rms_path")));
+        webView.loadUrl(deepLinkUrl(getIntent()));
 
         refreshFcmToken();
 
@@ -499,13 +499,27 @@ public class MainActivity extends Activity {
         return b + p;
     }
 
+    /**
+     * URL to load for an intent: the alert's deep link, plus ?rms_alert=<id> when
+     * the intent came from an alert so the web app can acknowledge it (which
+     * silences the other devices). Plain launches load the base URL.
+     */
+    private String deepLinkUrl(Intent intent) {
+        String path = intent == null ? null : intent.getStringExtra("rms_path");
+        String alertId = intent == null ? null : intent.getStringExtra(AlertNotifier.EXTRA_ID);
+        String url = withPath(pageUrl, path);
+        if (alertId != null && !alertId.isEmpty()) {
+            url += (url.contains("?") ? "&" : "?") + "rms_alert=" + Uri.encode(alertId);
+        }
+        return url;
+    }
+
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
-        String path = intent.getStringExtra("rms_path");
-        if (path != null && webView != null) {
-            webView.loadUrl(withPath(pageUrl, path));
+        if (webView != null && (intent.hasExtra("rms_path") || intent.hasExtra(AlertNotifier.EXTRA_ID))) {
+            webView.loadUrl(deepLinkUrl(intent));
         }
     }
 

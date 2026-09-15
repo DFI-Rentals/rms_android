@@ -11,8 +11,8 @@ android {
         applicationId "com.dfirentals.rms"
         minSdk 21
         targetSdk 34
-        versionCode 11
-        versionName "2.0"
+        versionCode 12
+        versionName "2.1"
     }
 
     // prod = the real app. preview = same code under a second applicationId so

@@ -30,9 +30,10 @@ public class AlertReceiver extends BroadcastReceiver {
             Intent open = new Intent(ctx, MainActivity.class)
                     .setAction(Intent.ACTION_VIEW)
                     .putExtra("rms_path", path)
+                    .putExtra(AlertNotifier.EXTRA_ID, id)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
             ctx.startActivity(open);
-            // TODO Phase 2: POST /rms/notify/{id}/ack so the other devices stop ringing
+            // The web app reads ?rms_alert=<id> and POSTs /rms/notify/{id}/ack (silences the other devices)
         } else if (AlertNotifier.ACTION_DISMISS.equals(action)) {
             AlertNotifier.cancel(ctx, id);
         } else if (ACTION_PREVIEW.equals(action)) {
