@@ -171,6 +171,31 @@ public class MainActivity extends Activity {
         }
     }
 
+    /**
+     * Pages should take over the screen even when the device is unlocked and on another
+     * app. That needs "Display over other apps". Ask once per day until it is granted;
+     * fleet setup can also grant it over USB:
+     *   adb shell appops set com.dfirentals.rms SYSTEM_ALERT_WINDOW allow
+     */
+    private void askForOverlayPermissionOnce() {
+        if (AlertNotifier.canDrawOverlays(this)) return;
+        SharedPreferences p = getSharedPreferences(PREFS, MODE_PRIVATE);
+        long last = p.getLong("overlay_asked_at", 0);
+        if (System.currentTimeMillis() - last < 24L * 3600_000L) return;
+        p.edit().putLong("overlay_asked_at", System.currentTimeMillis()).apply();
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("Let RMS pages take over the screen")
+                .setMessage("So a page from the office can pop up even while you are in another app, allow \"Display over other apps\" for DFI Rentals RMS on the next screen.")
+                .setPositiveButton("Open settings", (d, w) -> {
+                    try {
+                        startActivity(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                Uri.parse("package:" + getPackageName())));
+                    } catch (Exception ignored) {}
+                })
+                .setNegativeButton("Later", null)
+                .show();
+    }
+
     /** Ask Firebase for the token at startup so getDeviceInfo() has it by the time the RMS logs in. */
     private void refreshFcmToken() {
         try {
@@ -466,6 +491,7 @@ public class MainActivity extends Activity {
         webView.loadUrl(deepLinkUrl(getIntent()));
 
         refreshFcmToken();
+        askForOverlayPermissionOnce();
 
         // Alerts: channels exist from the start; Android 13+ needs the runtime
         // notification permission or nothing (including the call screen) shows.

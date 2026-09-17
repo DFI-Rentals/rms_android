@@ -10,6 +10,7 @@ import android.media.AudioAttributes;
 import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Build;
+import android.provider.Settings;
 
 /**
  * Builds the RMS alerts. Three kinds share one entry point so the push
@@ -133,6 +134,26 @@ public final class AlertNotifier {
         }
 
         nm.notify(notifId, b.build());
+
+        // A full-screen intent only takes over when the device is locked or the screen is
+        // off; unlocked it degrades to a heads-up banner. Open the call screen ourselves
+        // when Android lets us: our app is on screen, or "Display over other apps" is on.
+        if (isCall && (RmsApp.isInForeground() || canDrawOverlays(ctx))) {
+            try {
+                ctx.startActivity(new Intent(ctx, IncomingAlertActivity.class)
+                        .putExtra(EXTRA_ID, alertId).putExtra(EXTRA_KIND, kind)
+                        .putExtra(EXTRA_TITLE, title).putExtra(EXTRA_BODY, body)
+                        .putExtra(EXTRA_PATH, path).putExtra(EXTRA_TTL, ttlSeconds)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP));
+            } catch (Exception ignored) {
+                // the full-screen intent / heads-up notification is still posted
+            }
+        }
+    }
+
+    /** "Display over other apps": lets a background app open the call screen on an unlocked device. */
+    public static boolean canDrawOverlays(Context ctx) {
+        return Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(ctx);
     }
 
     public static void cancel(Context ctx, String alertId) {

@@ -52,13 +52,6 @@ public class IncomingAlertActivity extends Activity {
 
         setContentView(R.layout.activity_incoming_alert);
 
-        Intent in = getIntent();
-        alertId = in.getStringExtra(AlertNotifier.EXTRA_ID);
-        path = in.getStringExtra(AlertNotifier.EXTRA_PATH);
-        String title = in.getStringExtra(AlertNotifier.EXTRA_TITLE);
-        String body = in.getStringExtra(AlertNotifier.EXTRA_BODY);
-        int ttl = in.getIntExtra(AlertNotifier.EXTRA_TTL, 45);
-
         TextView titleView = findViewById(R.id.alertTitle);
         TextView bodyView = findViewById(R.id.alertBody);
         TextView kicker = findViewById(R.id.alertKicker);
@@ -66,8 +59,7 @@ public class IncomingAlertActivity extends Activity {
         TextView dismiss = findViewById(R.id.alertDismiss);
         View pulse = findViewById(R.id.alertPulse);
 
-        titleView.setText(title == null ? "RMS alert" : title);
-        bodyView.setText(body == null ? "" : body);
+        applyIntent(getIntent());
         try {
             Typeface bold = Typeface.createFromAsset(getAssets(), "fonts/Saans-Medium.otf");
             Typeface regular = Typeface.createFromAsset(getAssets(), "fonts/Saans-Regular.otf");
@@ -88,9 +80,6 @@ public class IncomingAlertActivity extends Activity {
 
         startRinging();
 
-        timeout = new Runnable() { @Override public void run() { dismiss(); } };
-        handler.postDelayed(timeout, Math.max(10, ttl) * 1000L);
-
         // Another device (or the notification's action buttons) handled it
         doneReceiver = new BroadcastReceiver() {
             @Override public void onReceive(Context c, Intent i) {
@@ -101,6 +90,28 @@ public class IncomingAlertActivity extends Activity {
         IntentFilter f = new IntentFilter(AlertNotifier.ACTION_DONE);
         if (Build.VERSION.SDK_INT >= 33) registerReceiver(doneReceiver, f, 4 /* Context.RECEIVER_NOT_EXPORTED, API 33 constant; compileSdk is 30 */);
         else registerReceiver(doneReceiver, f);
+    }
+
+    /** Show this alert's text and arm its timeout (also used when a newer page replaces the current one). */
+    private void applyIntent(Intent in) {
+        alertId = in.getStringExtra(AlertNotifier.EXTRA_ID);
+        path = in.getStringExtra(AlertNotifier.EXTRA_PATH);
+        String title = in.getStringExtra(AlertNotifier.EXTRA_TITLE);
+        String body = in.getStringExtra(AlertNotifier.EXTRA_BODY);
+        int ttl = in.getIntExtra(AlertNotifier.EXTRA_TTL, 45);
+        ((TextView) findViewById(R.id.alertTitle)).setText(title == null ? "RMS alert" : title);
+        ((TextView) findViewById(R.id.alertBody)).setText(body == null ? "" : body);
+        handler.removeCallbacks(timeout);
+        timeout = new Runnable() { @Override public void run() { dismiss(); } };
+        handler.postDelayed(timeout, Math.max(10, ttl) * 1000L);
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        applyIntent(intent);
+        if (player == null) startRinging();
     }
 
     private void startRinging() {
