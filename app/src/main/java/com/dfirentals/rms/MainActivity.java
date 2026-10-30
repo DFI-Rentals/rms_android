@@ -2,6 +2,7 @@ package com.dfirentals.rms;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.content.ActivityNotFoundException;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
@@ -324,6 +325,7 @@ public class MainActivity extends Activity {
     // File upload support
     private static final int FILE_CHOOSER_REQUEST = 100;
     private static final int CAMERA_PERMISSION_REQUEST = 101;
+    private static final int CHOOSER_CAMERA_PERMISSION_REQUEST = 102; // chooser with a camera option (plain image inputs)
     private static final int NOTIFICATION_PERMISSION_REQUEST = 102;
     private ValueCallback<Uri[]> fileUploadCallback;
     private String cameraPhotoPath;
@@ -565,56 +567,74 @@ public class MainActivity extends Activity {
         return saved != null ? saved : DEFAULT_URL;
     }
 
-    private void launchCamera() {
-        Intent cameraIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-        if (cameraIntent.resolveActivity(getPackageManager()) != null) {
-            File photoFile = null;
-            try {
-                photoFile = createImageFile();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            if (photoFile != null) {
-                cameraPhotoPath = photoFile.getAbsolutePath();
-                Uri photoUri = FileProvider.getUriForFile(this,
-                        getPackageName() + ".fileprovider", photoFile);
-                cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoUri);
-                startActivityForResult(cameraIntent, FILE_CHOOSER_REQUEST);
-            } else {
-                cancelFileUpload();
-            }
-        } else {
-            cancelFileUpload();
-        }
+    private boolean cameraGranted() {
+        return ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED;
     }
 
-    private void launchFileChooser(boolean wantsImage) {
-        // Camera intent
-        Intent cameraIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-        File photoFile = null;
+    /** A camera intent writing into a fresh app-private file, or null when the file cannot be created. */
+    private Intent buildCameraIntent() {
+        File photoFile;
         try {
             photoFile = createImageFile();
         } catch (IOException e) {
             e.printStackTrace();
+            return null;
         }
-        if (photoFile != null) {
-            cameraPhotoPath = photoFile.getAbsolutePath();
-            Uri photoUri = FileProvider.getUriForFile(this,
-                    getPackageName() + ".fileprovider", photoFile);
-            cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoUri);
+        cameraPhotoPath = photoFile.getAbsolutePath();
+        Uri photoUri = FileProvider.getUriForFile(this, getPackageName() + ".fileprovider", photoFile);
+        Intent cameraIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoUri);
+        return cameraIntent;
+    }
+
+    /** capture="environment": straight into the camera (permission already checked by the caller). No
+     *  resolveActivity gate: on Android 11+ that lookup needs the manifest <queries> entry and used to answer
+     *  "no camera" silently; a missing camera app now falls back to the file picker instead. */
+    private void launchCamera() {
+        Intent cameraIntent = buildCameraIntent();
+        if (cameraIntent == null) {
+            cancelFileUpload();
+            return;
+        }
+        try {
+            startActivityForResult(cameraIntent, FILE_CHOOSER_REQUEST);
+        } catch (ActivityNotFoundException | SecurityException e) {
+            cameraPhotoPath = null;
+            launchFileChooser(true, false);
+        }
+    }
+
+    private void launchFileChooser(boolean wantsImage) {
+        launchFileChooser(wantsImage, true);
+    }
+
+    /** Plain file input: a picker, plus a camera option for image inputs once the camera permission is granted.
+     *  Offering the camera without the permission crashed with a SecurityException on tap (targetSdk 23+), so an
+     *  image input asks for it once first; a denial just leaves the camera off the chooser. */
+    private void launchFileChooser(boolean wantsImage, boolean mayAskForCamera) {
+        boolean granted = cameraGranted();
+        if (wantsImage && !granted && mayAskForCamera) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CAMERA}, CHOOSER_CAMERA_PERMISSION_REQUEST);
+            return;
         }
 
-        // File picker intent
         Intent fileIntent = new Intent(Intent.ACTION_GET_CONTENT);
         fileIntent.addCategory(Intent.CATEGORY_OPENABLE);
         fileIntent.setType(wantsImage ? "image/*" : "*/*");
 
-        // Combine into chooser
         Intent chooserIntent = Intent.createChooser(fileIntent, "Choose an option");
-        if (photoFile != null) {
-            chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, new Intent[]{cameraIntent});
+        cameraPhotoPath = null;
+        if (wantsImage && granted) {
+            Intent cameraIntent = buildCameraIntent();
+            if (cameraIntent != null) {
+                chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, new Intent[]{cameraIntent});
+            }
         }
-        startActivityForResult(chooserIntent, FILE_CHOOSER_REQUEST);
+        try {
+            startActivityForResult(chooserIntent, FILE_CHOOSER_REQUEST);
+        } catch (ActivityNotFoundException e) {
+            cancelFileUpload();
+        }
     }
 
     private File createImageFile() throws IOException {
@@ -665,9 +685,12 @@ public class MainActivity extends Activity {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 launchCamera();
             } else {
-                // Permission denied — fall back to file picker
-                launchFileChooser(true);
+                // Permission denied: file picker without the camera option (never ask again in the same flow)
+                launchFileChooser(true, false);
             }
+        } else if (requestCode == CHOOSER_CAMERA_PERMISSION_REQUEST) {
+            // Either way the chooser opens; the camera option is on it only when the permission was granted
+            launchFileChooser(true, false);
         }
     }
 
